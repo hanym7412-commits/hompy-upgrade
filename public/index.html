@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>홈페이지 마케팅 분석기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    .prose h3 { font-size: 1.1rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #1e3a5f; }
+    .prose strong { color: #374151; }
+    .prose ul { list-style: disc; padding-left: 1.5rem; margin: 0.4rem 0; }
+    .prose li { margin: 0.2rem 0; }
+    .prose p { margin: 0.4rem 0; line-height: 1.7; }
+    .prose hr { margin: 1rem 0; border-color: #e5e7eb; }
+    .prose table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; table-layout: fixed; }
+    .prose th, .prose td { border: 1px solid #9ca3af; padding: 7px 12px; vertical-align: top; word-break: break-word; }
+    .prose th { background: #f3f4f6; font-weight: 600; }
+    .prose blockquote { border: 1px solid #9ca3af; border-radius: 4px; margin: 0.6rem 0; padding: 10px 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.8s linear infinite; }
+    .history-item:hover .delete-btn { opacity: 1; }
+    .delete-btn { opacity: 0; transition: opacity 0.15s; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen font-sans">
+
+  <div class="max-w-3xl mx-auto px-4 py-12">
+
+    <!-- 헤더 -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-800">홈페이지 마케팅 분석기</h1>
+      <p class="text-gray-500 mt-2">URL을 입력하면 AI가 마케팅 관점에서 개선 방향을 분석해드립니다</p>
+    </div>
+
+    <!-- 입력 폼 -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+      <div class="flex gap-3">
+        <input
+          id="urlInput"
+          type="text"
+          placeholder="https://example.com"
+          class="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+        />
+        <button
+          id="analyzeBtn"
+          onclick="startAnalysis()"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition text-sm whitespace-nowrap shadow-sm"
+        >
+          분석 시작
+        </button>
+      </div>
+      <p class="text-xs text-gray-400 mt-2 ml-1">예시: naver.com, coupang.com, toss.im</p>
+    </div>
+
+    <!-- 상태 메시지 -->
+    <div id="statusBox" class="hidden bg-blue-50 border border-blue-100 rounded-xl px-5 py-4 mb-6 flex items-center gap-3">
+      <svg class="spinner w-5 h-5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+      </svg>
+      <span id="statusText" class="text-blue-700 text-sm font-medium"></span>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div id="errorBox" class="hidden bg-red-50 border border-red-100 rounded-xl px-5 py-4 mb-6">
+      <div class="flex items-center gap-2 mb-1">
+        <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <span class="text-red-700 font-semibold text-sm">분석 실패</span>
+      </div>
+      <p id="errorText" class="text-red-600 text-sm"></p>
+    </div>
+
+    <!-- 분석 결과 -->
+    <div id="resultBox" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+        <h2 class="text-lg font-bold text-gray-800">분석 결과</h2>
+        <div class="flex items-center gap-2">
+          <span id="analyzedUrl" class="text-xs text-gray-400 truncate max-w-xs"></span>
+          <button onclick="downloadCurrentPDF(this)" title="PDF 다운로드"
+            class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg px-3 py-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            PDF
+          </button>
+        </div>
+      </div>
+      <div id="result" class="prose text-gray-700 text-sm leading-relaxed"></div>
+    </div>
+
+    <!-- 분석 기록 -->
+    <div id="historySection" class="hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-bold text-gray-700">분석 기록</h2>
+        <span id="historyCount" class="text-xs text-gray-400"></span>
+      </div>
+      <div id="historyList" class="space-y-2"></div>
+    </div>
+
+    <!-- 기록 상세 모달 -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-start justify-center pt-10 px-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h3 class="font-bold text-gray-800 text-base" id="modalUrl"></h3>
+            <p class="text-xs text-gray-400 mt-0.5" id="modalDate"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="downloadModalPDF(this)" title="PDF 다운로드"
+              class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg px-3 py-1.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              PDF
+            </button>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="overflow-y-auto px-6 py-4">
+          <div id="modalResult" class="prose text-gray-700 text-sm leading-relaxed"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    marked.setOptions({ breaks: true });
+
+    let accumulatedText = '';
+
+    // ── PDF 다운로드 (서버에서 puppeteer로 생성) ─────────────
+
+    const PDF_ICON = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> PDF`;
+
+    let currentAnalysisId = null;
+    let currentModalId = null;
+
+    async function triggerPdfDownload(analysisId, btn) {
+      if (!analysisId) { alert('분석 완료 후 다운로드해주세요.'); return; }
+      if (btn) { btn.textContent = '생성 중...'; btn.disabled = true; }
+      try {
+        const res = await fetch(`/api/history/${analysisId}/pdf/generate`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `서버 오류 ${res.status}`);
+        }
+        const blob = await res.blob();
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const match = disposition.match(/filename="(.+?)"/);
+        const filename = match ? match[1] : `analysis_${analysisId}.pdf`;
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (err) {
+        alert('PDF 생성 실패: ' + err.message);
+      } finally {
+        if (btn) { btn.innerHTML = PDF_ICON; btn.disabled = false; }
+      }
+    }
+
+    function downloadCurrentPDF(btn) {
+      triggerPdfDownload(currentAnalysisId, btn);
+    }
+
+    function downloadModalPDF(btn) {
+      triggerPdfDownload(currentModalId, btn);
+    }
+
+    function showStatus(msg) {
+      document.getElementById('statusBox').classList.remove('hidden');
+      document.getElementById('statusText').textContent = msg;
+    }
+
+    function hideStatus() {
+      document.getElementById('statusBox').classList.add('hidden');
+    }
+
+    function showError(msg) {
+      document.getElementById('errorBox').classList.remove('hidden');
+      document.getElementById('errorText').textContent = msg;
+    }
+
+    function renderResult() {
+      if (accumulatedText) {
+        document.getElementById('result').innerHTML = marked.parse(accumulatedText);
+      }
+    }
+
+    // ── 분석 기록 ──────────────────────────────────
+
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+        + ' ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const list = await res.json();
+        const section = document.getElementById('historySection');
+        const container = document.getElementById('historyList');
+        const countEl = document.getElementById('historyCount');
+
+        if (list.length === 0) {
+          section.classList.add('hidden');
+          return;
+        }
+
+        section.classList.remove('hidden');
+        countEl.textContent = `총 ${list.length}건`;
+        container.innerHTML = list.map((item) => `
+          <div class="history-item group bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center justify-between hover:border-blue-200 hover:shadow-sm transition cursor-pointer"
+               onclick="openModal('${item.id}')">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-gray-700 truncate">${item.url}</p>
+              <p class="text-xs text-gray-400 mt-0.5">${formatDate(item.savedAt)}</p>
+            </div>
+            <button
+              class="delete-btn ml-3 flex-shrink-0 text-gray-300 hover:text-red-400 transition p-1 rounded-lg"
+              onclick="deleteItem(event, '${item.id}')"
+              title="삭제"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        `).join('');
+      } catch (_) {}
+    }
+
+    async function openModal(id) {
+      try {
+        const res = await fetch(`/api/history/${id}`);
+        const item = await res.json();
+        currentModalId = id;
+        document.getElementById('modalUrl').textContent = item.url;
+        document.getElementById('modalDate').textContent = formatDate(item.savedAt);
+        document.getElementById('modalResult').innerHTML = marked.parse(item.result);
+        document.getElementById('modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      } catch (_) {
+        alert('불러오기 실패');
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    async function deleteItem(e, id) {
+      e.stopPropagation();
+      if (!confirm('이 기록을 삭제할까요?')) return;
+      await fetch(`/api/history/${id}`, { method: 'DELETE' });
+      loadHistory();
+    }
+
+    // 모달 배경 클릭 시 닫기
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeModal();
+    });
+
+    // ── 분석 실행 ──────────────────────────────────
+
+    async function startAnalysis() {
+      const url = document.getElementById('urlInput').value.trim();
+      if (!url) { alert('URL을 입력해주세요.'); return; }
+
+      accumulatedText = '';
+      document.getElementById('errorBox').classList.add('hidden');
+      document.getElementById('resultBox').classList.add('hidden');
+      document.getElementById('result').innerHTML = '';
+      document.getElementById('analyzeBtn').disabled = true;
+      document.getElementById('analyzeBtn').textContent = '분석 중...';
+
+      showStatus('페이지를 가져오는 중...');
+
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        document.getElementById('analyzedUrl').textContent = url;
+        document.getElementById('resultBox').classList.remove('hidden');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const blocks = buffer.split('\n\n');
+          buffer = blocks.pop();
+
+          for (const block of blocks) {
+            const lines = block.split('\n');
+            let eventType = 'chunk';
+            let data = null;
+
+            for (const line of lines) {
+              if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+              else if (line.startsWith('data: ')) {
+                try { data = JSON.parse(line.slice(6)); } catch (_) {}
+              }
+            }
+
+            if (!data) continue;
+
+            if (eventType === 'status') {
+              showStatus(data.message);
+            } else if (eventType === 'chunk') {
+              accumulatedText += data.text;
+              document.getElementById('result').innerHTML = marked.parse(accumulatedText);
+            } else if (eventType === 'done') {
+              hideStatus();
+              renderResult();
+              if (data.id) currentAnalysisId = data.id;
+              loadHistory(); // 저장 후 기록 목록 갱신
+            } else if (eventType === 'error') {
+              hideStatus();
+              showError(data.message);
+            }
+          }
+        }
+
+        hideStatus();
+        renderResult();
+      } catch (err) {
+        hideStatus();
+        showError('서버 연결에 실패했습니다: ' + err.message);
+      } finally {
+        document.getElementById('analyzeBtn').disabled = false;
+        document.getElementById('analyzeBtn').textContent = '분석 시작';
+      }
+    }
+
+    document.getElementById('urlInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') startAnalysis();
+    });
+
+    // 페이지 로드 시 기록 불러오기
+    loadHistory();
+  </script>
+</body>
+</html>
