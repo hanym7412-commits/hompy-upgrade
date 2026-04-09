@@ -5,10 +5,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { fetchPageData } from './src/fetcher.js';
 import { analyzePageStream } from './src/analyzer.js';
-import { generatePdf } from './src/pdfGenerator.js';
 import {
-  saveAnalysis, listAnalyses, getAnalysis,
-  deleteAnalysis, savePdfUrl,
+  saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis,
 } from './src/storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,15 +18,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Rate Limiting
 const analyzeLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15분
-  max: 10,                   // 15분에 최대 10회
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: { error: '요청이 너무 많습니다. 15분 후 다시 시도해주세요.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const generalLimit = rateLimit({
-  windowMs: 60 * 1000, // 1분
+  windowMs: 60 * 1000,
   max: 60,
   message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
 });
@@ -110,55 +108,11 @@ app.delete('/api/history/:id', async (req, res) => {
   }
 });
 
-// PDF 생성 (puppeteer) + Supabase Storage 업로드 + 클라이언트 다운로드
-app.get('/api/history/:id/pdf/generate', async (req, res) => {
-  try {
-    const entry = await getAnalysis(req.params.id);
-    if (!entry) return res.status(404).json({ error: '찾을 수 없습니다.' });
-
-    console.log('[PDF] 생성 시작:', entry.url);
-    const pdfBuffer = await generatePdf(entry.result, entry.url);
-    console.log('[PDF] 생성 완료, 크기:', Math.round(pdfBuffer.length / 1024), 'KB');
-
-    // ASCII 안전 파일명 생성
-    const safeFilename = entry.url
-      .replace(/^https?:\/\//, '')
-      .replace(/[^a-zA-Z0-9._-]/g, '_')
-      .replace(/_+/g, '_')
-      .slice(0, 60) + '.pdf';
-    const filePath = `${req.params.id}/${safeFilename}`;
-
-    // Supabase Storage 업로드
-    try {
-      const { supabase } = await import('./src/supabase.js');
-      const { error } = await supabase.storage
-        .from('pdfs')
-        .upload(filePath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
-
-      if (error) {
-        console.warn('[Storage] 업로드 실패:', error.message);
-      } else {
-        const { data } = supabase.storage.from('pdfs').getPublicUrl(filePath);
-        await savePdfUrl(req.params.id, data.publicUrl);
-        console.log('[Storage] 업로드 완료:', data.publicUrl);
-      }
-    } catch (storageErr) {
-      console.warn('[Storage] 오류:', storageErr.message);
-    }
-
-    // 클라이언트에 PDF 스트림 전송
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-    res.send(pdfBuffer);
-  } catch (err) {
-    console.error('[PDF] 생성 오류:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.listen(PORT, () => {
   console.log(`서버 시작: http://localhost:${PORT}`);
   if (!process.env.ANTHROPIC_API_KEY)    console.warn('⚠️  ANTHROPIC_API_KEY 미설정');
   if (!process.env.SUPABASE_URL)         console.warn('⚠️  SUPABASE_URL 미설정');
   if (!process.env.SUPABASE_SERVICE_KEY) console.warn('⚠️  SUPABASE_SERVICE_KEY 미설정');
 });
+
+export default app;

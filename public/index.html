@@ -85,13 +85,6 @@
         <h2 class="text-lg font-bold text-gray-800">분석 결과</h2>
         <div class="flex items-center gap-2">
           <span id="analyzedUrl" class="text-xs text-gray-400 truncate max-w-xs"></span>
-          <button onclick="downloadCurrentPDF(this)" title="PDF 다운로드"
-            class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg px-3 py-1.5 transition">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            PDF
-          </button>
         </div>
       </div>
       <div id="result" class="prose text-gray-700 text-sm leading-relaxed"></div>
@@ -115,13 +108,6 @@
             <p class="text-xs text-gray-400 mt-0.5" id="modalDate"></p>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="downloadModalPDF(this)" title="PDF 다운로드"
-              class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg px-3 py-1.5 transition">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              PDF
-            </button>
             <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -141,47 +127,8 @@
     marked.setOptions({ breaks: true });
 
     let accumulatedText = '';
-
-    // ── PDF 다운로드 (서버에서 puppeteer로 생성) ─────────────
-
-    const PDF_ICON = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> PDF`;
-
     let currentAnalysisId = null;
     let currentModalId = null;
-
-    async function triggerPdfDownload(analysisId, btn) {
-      if (!analysisId) { alert('분석 완료 후 다운로드해주세요.'); return; }
-      if (btn) { btn.textContent = '생성 중...'; btn.disabled = true; }
-      try {
-        const res = await fetch(`/api/history/${analysisId}/pdf/generate`);
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || `서버 오류 ${res.status}`);
-        }
-        const blob = await res.blob();
-        const disposition = res.headers.get('Content-Disposition') || '';
-        const match = disposition.match(/filename="(.+?)"/);
-        const filename = match ? match[1] : `analysis_${analysisId}.pdf`;
-
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      } catch (err) {
-        alert('PDF 생성 실패: ' + err.message);
-      } finally {
-        if (btn) { btn.innerHTML = PDF_ICON; btn.disabled = false; }
-      }
-    }
-
-    function downloadCurrentPDF(btn) {
-      triggerPdfDownload(currentAnalysisId, btn);
-    }
-
-    function downloadModalPDF(btn) {
-      triggerPdfDownload(currentModalId, btn);
-    }
 
     function showStatus(msg) {
       document.getElementById('statusBox').classList.remove('hidden');
